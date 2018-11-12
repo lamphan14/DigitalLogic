@@ -1,0 +1,71 @@
+`timescale 1ns / 1ps
+module ALU_16(A,B,op,result,Ov,clk);
+   input [15:0] A,B;
+   input [1:0]op;
+   input clk;
+   output [32:0] result;
+   output Ov;
+   reg [32:0] result;
+    reg Ov;
+   reg sign=0;
+   reg           negative_output;
+    initial negative_output = 0;
+   reg [31:0]    dividend_copy, divider_copy, diff;
+    reg [15:0]q;
+   wire [15:0]   r = (!negative_output) ?dividend_copy[15:0] :~dividend_copy[15:0] + 1'b1;
+   reg [15:0]    quotient_temp;
+   reg [4:0]     bit;
+    wire ready = !bit;
+   initial bit = 0;
+    always@(posedge clk)
+   begin
+       if(op==0)
+       begin
+           result=A+B;
+           Ov=result[16];
+           $display("A=%b, B=%b, Addition=%b, Overflow=%b",A,B,result,Ov);
+       end
+      
+       if(op==1)
+       begin
+           result=A-B;
+           Ov=result[16];
+           $display("A=%b, B=%b, Subtraction=%b, Overflow=%b",A,B,result,Ov);
+       end
+      
+       if(op==2)
+       begin
+           result=A*B;
+           Ov=result[32];
+           $display("A=%b, B=%b, Multiplication=%b, Overflow=%b",A,B,result,Ov);
+       end
+      
+       if(op==3)
+       begin
+               if( ready )
+               begin
+                   bit = 5'd16;
+                   q = 0;
+                   quotient_temp = 0;
+                   dividend_copy = (!sign || !A[15]) ? {16'd0,A} : {16'd0,~A + 1'b1};
+                   divider_copy = (!sign || !B[15]) ? {1'b0,B,15'd0} : {1'b0,~B + 1'b1,15'd0};
+                   negative_output = sign && ((B[15] && !A[15]) ||(!B[15] && A[15]));
+               end
+               else if ( bit > 0 )
+               begin
+                   diff = dividend_copy - divider_copy;
+                   quotient_temp = quotient_temp << 1;
+                   if( !diff[31] )
+                   begin
+                       dividend_copy = diff;
+                       quotient_temp[0] = 1'd1;
+                   end
+                   q = (!negative_output) ? quotient_temp : ~quotient_temp + 1'b1;
+                   divider_copy = divider_copy >> 1;
+                   bit = bit - 1'b1;
+               end
+               result=q;
+           $display("A=%b, B=%b, Division=%b, Overflow=%b",A,B,q,Ov);
+       end
+   end
+endmodule
